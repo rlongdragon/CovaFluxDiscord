@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Runtime data and secrets
+.env
+.env.*
+!.env.example
+data/
+
+# PM2 runtime state and logs
+.pm2/
+logs/
+*.log
+
+# TypeScript / tool caches
+*.tsbuildinfo
+.tsx/
+.cache/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

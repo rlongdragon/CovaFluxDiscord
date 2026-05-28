@@ -108,7 +108,7 @@ function helpMessage(isAdmin: boolean) {
     "",
     "🖥️ 節點管理：`/nodes-list`、`/node-expire`、`/node-delete`",
     "👥 群組管理：`/group-create`、`/group-add user:@user`",
-    "🔗 分享節點：`/share-node node:<節點> user:@user allow-exit-node:<true|false>`",
+    "🔗 分享節點：`/share-node node:<節點> user:@user allow-exit-node:<true|false>`、`/unshare-node node:<節點> user:@user`",
     adminLine
   ].join("\n");
 }
@@ -293,6 +293,26 @@ async function handleShareNode(interaction: ChatInputCommandInteraction) {
   await interaction.editReply(`🔗 已分享 node 給 ${target.username}${allowExitNode ? "，並允許 exit node" : ""}。`);
 }
 
+async function handleUnshareNode(interaction: ChatInputCommandInteraction) {
+  const binding = await requireBinding(interaction);
+  const target = interaction.options.getUser("user", true);
+  const targetBinding = await findBindingByDiscordUserId(target.id);
+  if (!targetBinding) throw new Error(`${target.username} 尚未綁定 CovaFlux 帳號。`);
+  const api = await clientForBinding(binding);
+  const nodeId = interaction.options.getString("node", true);
+  const shares = await api.listShares();
+  const activeShares = shares.filter((share) => (
+    !share.revokedAt &&
+    share.node?.id === nodeId &&
+    share.sharedBy?.id === binding.covafluxUserId &&
+    share.targetUser?.id === targetBinding.covafluxUserId
+  ));
+  if (activeShares.length === 0) throw new Error(`找不到分享給 ${target.username} 的 active node share。`);
+
+  await Promise.all(activeShares.map((share) => api.revokeShare(share.id)));
+  await interaction.editReply(`🔒 已撤銷 ${target.username} 對這個 node 的分享。`);
+}
+
 async function handleCommand(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   switch (interaction.commandName) {
@@ -328,6 +348,9 @@ async function handleCommand(interaction: ChatInputCommandInteraction) {
       break;
     case "share-node":
       await handleShareNode(interaction);
+      break;
+    case "unshare-node":
+      await handleUnshareNode(interaction);
       break;
     default:
       await interaction.editReply("未知指令。");

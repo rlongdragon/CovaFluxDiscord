@@ -48,7 +48,12 @@ export const commands = [
     .setDescription("Share one of your nodes with a Discord user")
     .addStringOption((option) => option.setName("node").setDescription("Node").setRequired(true).setAutocomplete(true))
     .addUserOption((option) => option.setName("user").setDescription("Discord user").setRequired(true))
-    .addBooleanOption((option) => option.setName("allow-exit-node").setDescription("Allow exit-node access").setRequired(false))
+    .addBooleanOption((option) => option.setName("allow-exit-node").setDescription("Allow exit-node access").setRequired(false)),
+  new SlashCommandBuilder()
+    .setName("unshare-node")
+    .setDescription("Revoke a node share from a Discord user")
+    .addStringOption((option) => option.setName("node").setDescription("Node").setRequired(true).setAutocomplete(true))
+    .addUserOption((option) => option.setName("user").setDescription("Discord user").setRequired(true))
 ].map((command) => command.toJSON());
 
 export async function registerCommands() {

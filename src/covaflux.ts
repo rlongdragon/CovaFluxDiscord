@@ -150,6 +150,10 @@ export class CovafluxClient {
       body: JSON.stringify({ targetUserId, allowExitNode })
     });
   }
+
+  async revokeShare(shareId: string) {
+    return this.request<{ ok: true }>(`/shares/${shareId}`, { method: "DELETE" });
+  }
 }
 
 let adminToken: string | null = null;

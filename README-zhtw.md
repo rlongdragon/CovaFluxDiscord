@@ -84,6 +84,7 @@ npm run pm2:status
 - `/group-create name` 建立 CovaFlux group。
 - `/group-add group user:@user` 將已綁定的 Discord 使用者加入 group。
 - `/share-node node user:@user allow-exit-node` 分享節點給已綁定的 Discord 使用者。
+- `/unshare-node node user:@user` 撤銷已分享給 Discord 使用者的節點。
 
 所有回覆都是 ephemeral，只有執行指令的使用者看得到。
 
@@ -125,6 +126,7 @@ sudo tailscale up --reset --login-server=<server> --auth-key=<key>
 
 ```text
 /share-node node:<choose-node> user:@target allow-exit-node:false
+/unshare-node node:<choose-node> user:@target
 ```
 
 管理群組：

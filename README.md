@@ -84,6 +84,7 @@ npm run pm2:status
 - `/group-create name` creates a CovaFlux group owned by the bound user.
 - `/group-add group user:@user` adds a bound Discord user to a group.
 - `/share-node node user:@user allow-exit-node` shares a node with a bound Discord user.
+- `/unshare-node node user:@user` revokes a node share from a bound Discord user.
 
 All replies are ephemeral.
 
@@ -125,6 +126,7 @@ To share access with another Discord user, that user must already be bound throu
 
 ```text
 /share-node node:<choose-node> user:@target allow-exit-node:false
+/unshare-node node:<choose-node> user:@target
 ```
 
 To manage groups:

@@ -122,6 +122,13 @@ export class CovafluxClient {
     });
   }
 
+  async renameNode(nodeId: string, name: string) {
+    return this.request<CovafluxNode>(`/nodes/${nodeId}/name`, {
+      method: "PATCH",
+      body: JSON.stringify({ name })
+    });
+  }
+
   async deleteNode(nodeId: string) {
     return this.request<{ ok: true }>(`/nodes/${nodeId}`, { method: "DELETE" });
   }

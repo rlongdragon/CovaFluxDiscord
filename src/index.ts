@@ -46,6 +46,18 @@ function statusEmoji(node: { expired?: boolean; online?: boolean }) {
   return "⚫ offline";
 }
 
+function validateNodeName(name: string) {
+  if (!/^[a-zA-Z0-9_.-]{1,63}$/.test(name)) {
+    throw new Error("節點名稱只能使用英文字母、數字、底線、點、連字號，長度需為 1 到 63 個字元。");
+  }
+}
+
+function validateGroupName(name: string) {
+  if (name.length < 1 || name.length > 80) {
+    throw new Error("群組名稱長度需為 1 到 80 個字元。");
+  }
+}
+
 function truncateCell(value: string, width: number) {
   if (value.length <= width) return value.padEnd(width, " ");
   return `${value.slice(0, Math.max(0, width - 1))}…`;
@@ -106,7 +118,7 @@ function helpMessage(isAdmin: boolean) {
     "🧩 加入節點：`/node-join name:<名稱> exit-node:<true|false>`",
     "Bot 會回傳可直接貼到機器上的 `tailscale up` 指令。",
     "",
-    "🖥️ 節點管理：`/nodes-list`、`/node-expire`、`/node-delete`",
+    "🖥️ 節點管理：`/nodes-list`、`/node-rename`、`/node-expire`、`/node-delete`",
     "👥 群組管理：`/group-create`、`/group-add user:@user`",
     "🔗 分享節點：`/share-node node:<節點> user:@user allow-exit-node:<true|false>`、`/unshare-node node:<節點> user:@user`",
     adminLine
@@ -205,10 +217,12 @@ async function handleMe(interaction: ChatInputCommandInteraction) {
 
 async function handleNodeJoin(interaction: ChatInputCommandInteraction) {
   const binding = await requireBinding(interaction);
-  const api = await clientForBinding(binding);
   const nodeName = interaction.options.getString("name") ?? undefined;
   const exitNode = interaction.options.getBoolean("exit-node") ?? false;
   const hours = interaction.options.getInteger("hours") ?? 24;
+  if (nodeName) validateNodeName(nodeName);
+
+  const api = await clientForBinding(binding);
   const key = await api.createRegisterKey({
     nodeName,
     reusable: false,
@@ -254,6 +268,17 @@ async function handleNodeExpire(interaction: ChatInputCommandInteraction) {
   await interaction.editReply("⏸️ 已 expire node。");
 }
 
+async function handleNodeRename(interaction: ChatInputCommandInteraction) {
+  const binding = await requireBinding(interaction);
+  const nodeId = interaction.options.getString("node", true);
+  const name = interaction.options.getString("name", true);
+  validateNodeName(name);
+
+  const api = await clientForBinding(binding);
+  const node = await api.renameNode(nodeId, name);
+  await interaction.editReply(`✏️ 已將 node 改名為：\`${nodeLabel(node)}\``);
+}
+
 async function handleNodeDelete(interaction: ChatInputCommandInteraction) {
   const binding = await requireBinding(interaction);
   const api = await clientForBinding(binding);
@@ -264,8 +289,10 @@ async function handleNodeDelete(interaction: ChatInputCommandInteraction) {
 
 async function handleGroupCreate(interaction: ChatInputCommandInteraction) {
   const binding = await requireBinding(interaction);
-  const api = await clientForBinding(binding);
   const name = interaction.options.getString("name", true);
+  validateGroupName(name);
+
+  const api = await clientForBinding(binding);
   const group = await api.createGroup(name);
   await interaction.editReply(`👥 已建立 group：\`${group.name}\``);
 }
@@ -336,6 +363,9 @@ async function handleCommand(interaction: ChatInputCommandInteraction) {
       break;
     case "node-expire":
       await handleNodeExpire(interaction);
+      break;
+    case "node-rename":
+      await handleNodeRename(interaction);
       break;
     case "node-delete":
       await handleNodeDelete(interaction);

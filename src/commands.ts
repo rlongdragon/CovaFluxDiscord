@@ -12,15 +12,15 @@ export const commands = [
   new SlashCommandBuilder()
     .setName("login")
     .setDescription("Bind your Discord account to an existing CovaFlux account")
-    .addStringOption((option) => option.setName("username").setDescription("CovaFlux username").setRequired(true))
-    .addStringOption((option) => option.setName("password").setDescription("CovaFlux password").setRequired(true)),
+    .addStringOption((option) => option.setName("username").setDescription("CovaFlux username").setRequired(true).setMinLength(1))
+    .addStringOption((option) => option.setName("password").setDescription("CovaFlux password").setRequired(true).setMinLength(1)),
   new SlashCommandBuilder()
     .setName("me")
     .setDescription("Show your CovaFlux binding"),
   new SlashCommandBuilder()
     .setName("node-join")
     .setDescription("Create a Tailscale join command for a new node")
-    .addStringOption((option) => option.setName("name").setDescription("Optional node name").setRequired(false))
+    .addStringOption((option) => option.setName("name").setDescription("Optional node name").setRequired(false).setMinLength(1).setMaxLength(63))
     .addBooleanOption((option) => option.setName("exit-node").setDescription("Advertise this node as an exit node").setRequired(false))
     .addIntegerOption((option) => option.setName("hours").setDescription("Key lifetime in hours, max 720").setRequired(false).setMinValue(1).setMaxValue(720)),
   new SlashCommandBuilder()
@@ -31,13 +31,18 @@ export const commands = [
     .setDescription("Expire one of your CovaFlux nodes")
     .addStringOption((option) => option.setName("node").setDescription("Node").setRequired(true).setAutocomplete(true)),
   new SlashCommandBuilder()
+    .setName("node-rename")
+    .setDescription("Rename one of your CovaFlux nodes")
+    .addStringOption((option) => option.setName("node").setDescription("Node").setRequired(true).setAutocomplete(true))
+    .addStringOption((option) => option.setName("name").setDescription("New node name").setRequired(true).setMinLength(1).setMaxLength(63)),
+  new SlashCommandBuilder()
     .setName("node-delete")
     .setDescription("Delete one of your CovaFlux nodes")
     .addStringOption((option) => option.setName("node").setDescription("Node").setRequired(true).setAutocomplete(true)),
   new SlashCommandBuilder()
     .setName("group-create")
     .setDescription("Create a CovaFlux group")
-    .addStringOption((option) => option.setName("name").setDescription("Group name").setRequired(true)),
+    .addStringOption((option) => option.setName("name").setDescription("Group name").setRequired(true).setMinLength(1).setMaxLength(80)),
   new SlashCommandBuilder()
     .setName("group-add")
     .setDescription("Add a Discord user to one of your CovaFlux groups")

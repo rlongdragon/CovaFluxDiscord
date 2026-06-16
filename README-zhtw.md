@@ -79,6 +79,7 @@ npm run pm2:status
 - `/me` 查看目前綁定狀態。
 - `/node-join name exit-node hours` 建立 Headscale/Tailscale pre-auth key，並回傳 `tailscale up` 指令。
 - `/nodes-list` 列出目前 CovaFlux 使用者可見的節點。
+- `/node-rename node name` 修改節點名稱。
 - `/node-expire node` expire 一個節點。
 - `/node-delete node` 刪除一個節點。
 - `/group-create name` 建立 CovaFlux group。
@@ -118,6 +119,7 @@ sudo tailscale up --reset --login-server=<server> --auth-key=<key>
 
 ```text
 /nodes-list
+/node-rename node:<choose-from-autocomplete> name:<new-node-name>
 /node-expire node:<choose-from-autocomplete>
 /node-delete node:<choose-from-autocomplete>
 ```

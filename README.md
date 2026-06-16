@@ -79,6 +79,7 @@ npm run pm2:status
 - `/me` shows the current binding.
 - `/node-join name exit-node hours` creates a Headscale/Tailscale pre-auth key and returns a `tailscale up` command.
 - `/nodes-list` lists nodes visible to the bound CovaFlux user.
+- `/node-rename node name` renames a node.
 - `/node-expire node` expires a node.
 - `/node-delete node` deletes a node.
 - `/group-create name` creates a CovaFlux group owned by the bound user.
@@ -118,6 +119,7 @@ To inspect and manage nodes:
 
 ```text
 /nodes-list
+/node-rename node:<choose-from-autocomplete> name:<new-node-name>
 /node-expire node:<choose-from-autocomplete>
 /node-delete node:<choose-from-autocomplete>
 ```

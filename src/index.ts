@@ -106,9 +106,41 @@ function incomingSharedNodes(shares: CovafluxShare[], currentUserId: string) {
   return rows;
 }
 
+function incomingShares(shares: CovafluxShare[], currentUserId: string) {
+  return shares.filter((share) => (
+    !share.revokedAt &&
+    share.node &&
+    share.sharedBy?.id !== currentUserId &&
+    (share.targetUser?.id === currentUserId || Boolean(share.targetGroup))
+  ));
+}
+
+function formatShareTarget(share: { targetUser?: { username: string } | null; targetGroup?: { name: string; members?: Array<{ user?: { username: string } }> } | null }) {
+  if (share.targetUser) return `user:${share.targetUser.username}`;
+  if (share.targetGroup) {
+    const members = share.targetGroup.members
+      ?.map((member) => member.user?.username)
+      .filter((username): username is string => Boolean(username)) ?? [];
+    return members.length ? `group:${share.targetGroup.name} (${members.join(", ")})` : `group:${share.targetGroup.name}`;
+  }
+  return "-";
+}
+
+function parseDerpJson(value: string) {
+  const parsed = JSON.parse(value) as unknown;
+  if (parsed !== null && (typeof parsed !== "object" || Array.isArray(parsed))) {
+    throw new Error("DERP JSON 必須是 object，或用 null 清除設定。");
+  }
+  return parsed as Record<string, unknown> | null;
+}
+
+function formatJson(value: unknown) {
+  return codeBlock("json", JSON.stringify(value, null, 2));
+}
+
 function helpMessage(isAdmin: boolean) {
   const adminLine = isAdmin
-    ? "\n🛡️ 管理員：`/admin-invite user:@user` 建立並綁定使用者帳號。"
+    ? "\n🛡️ 管理員：`/admin-invite user:@user` 建立並綁定使用者帳號；`/admin-derp` 查看/更新 DERP map。"
     : "";
   return [
     "📘 CovaFlux Discord Bot 使用說明",
@@ -118,9 +150,10 @@ function helpMessage(isAdmin: boolean) {
     "🧩 加入節點：`/node-join name:<名稱> exit-node:<true|false>`",
     "Bot 會回傳可直接貼到機器上的 `tailscale up` 指令。",
     "",
-    "🖥️ 節點管理：`/nodes-list`、`/node-rename`、`/node-expire`、`/node-delete`",
+    "🖥️ 節點管理：`/nodes-list`、`/node-detail`、`/node-rename`、`/node-expire`、`/node-delete`",
     "👥 群組管理：`/group-create`、`/group-add user:@user`",
-    "🔗 分享節點：`/share-node node:<節點> user:@user allow-exit-node:<true|false>`、`/unshare-node node:<節點> user:@user`",
+    "🔗 分享節點：`/share-node node:<節點> user:@user allow-exit-node:<true|false>`、`/unshare-node node:<節點> user:@user`、`/leave-share share:<分享>`",
+    "🔐 帳號：`/change-password` 修改你的 CovaFlux 密碼。",
     adminLine
   ].join("\n");
 }
@@ -287,6 +320,31 @@ async function handleNodeDelete(interaction: ChatInputCommandInteraction) {
   await interaction.editReply("🗑️ 已刪除 node。");
 }
 
+async function handleNodeDetail(interaction: ChatInputCommandInteraction) {
+  const binding = await requireBinding(interaction);
+  const api = await clientForBinding(binding);
+  const nodeId = interaction.options.getString("node", true);
+  const node = await api.getNode(nodeId);
+  const shareRows = (node.shares ?? []).map((share) => [
+    share.id,
+    formatShareTarget(share),
+    share.sharedBy?.username ?? "-",
+    share.allowExitNode ? "yes" : "no"
+  ]);
+  await interaction.editReply(truncateDiscordMessage([
+    "🖥️ Node detail",
+    "",
+    `名稱：\`${nodeLabel(node)}\``,
+    `Owner：${node.owner?.username ?? node.ownerUserId ?? "-"}`,
+    `狀態：${statusEmoji(node)}`,
+    `IP：${node.ipAddresses?.length ? node.ipAddresses.join(", ") : "-"}`,
+    "",
+    shareRows.length
+      ? codeBlock("text", table(["SHARE", "TARGET", "BY", "EXIT"], shareRows))
+      : "目前沒有 active shares。"
+  ].join("\n")));
+}
+
 async function handleGroupCreate(interaction: ChatInputCommandInteraction) {
   const binding = await requireBinding(interaction);
   const name = interaction.options.getString("name", true);
@@ -306,6 +364,15 @@ async function handleGroupAdd(interaction: ChatInputCommandInteraction) {
   const groupId = interaction.options.getString("group", true);
   await api.addGroupMember(groupId, targetBinding.covafluxUserId);
   await interaction.editReply(`✅ 已將 ${target.username} 加入 group。`);
+}
+
+async function handleLeaveShare(interaction: ChatInputCommandInteraction) {
+  const binding = await requireBinding(interaction);
+  const api = await clientForBinding(binding);
+  const shareId = interaction.options.getString("share", true);
+  const result = await api.leaveShare(shareId);
+  const action = result.action === "group_left" ? "已退出對應 group share 的 group" : "已離開這個 node share";
+  await interaction.editReply(`🚪 ${action}。`);
 }
 
 async function handleShareNode(interaction: ChatInputCommandInteraction) {
@@ -340,6 +407,30 @@ async function handleUnshareNode(interaction: ChatInputCommandInteraction) {
   await interaction.editReply(`🔒 已撤銷 ${target.username} 對這個 node 的分享。`);
 }
 
+async function handleChangePassword(interaction: ChatInputCommandInteraction) {
+  const binding = await requireBinding(interaction);
+  const api = await clientForBinding(binding);
+  const currentPassword = interaction.options.getString("current-password", true);
+  const newPassword = interaction.options.getString("new-password", true);
+  await api.changePassword(currentPassword, newPassword);
+  await interaction.editReply("🔐 CovaFlux 密碼已更新。提醒：如果你之後登出或重新綁定，請使用新密碼登入。");
+}
+
+async function handleAdminDerp(interaction: ChatInputCommandInteraction) {
+  if (!isDiscordAdmin(interaction.user.id)) throw new Error("只有系統管理員可以使用這個指令。");
+  const admin = await getAdminClient();
+  const json = interaction.options.getString("json");
+  if (json === null) {
+    const current = await admin.getDerpSettings();
+    await interaction.editReply(truncateDiscordMessage(["🛰️ 目前 DERP 設定", "", formatJson(current.derpMap)].join("\n")));
+    return;
+  }
+
+  const derpMap = parseDerpJson(json);
+  const updated = await admin.updateDerpSettings(derpMap);
+  await interaction.editReply(truncateDiscordMessage(["🛰️ DERP 設定已更新", "", formatJson(updated.derpMap)].join("\n")));
+}
+
 async function handleCommand(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   switch (interaction.commandName) {
@@ -370,17 +461,29 @@ async function handleCommand(interaction: ChatInputCommandInteraction) {
     case "node-delete":
       await handleNodeDelete(interaction);
       break;
+    case "node-detail":
+      await handleNodeDetail(interaction);
+      break;
     case "group-create":
       await handleGroupCreate(interaction);
       break;
     case "group-add":
       await handleGroupAdd(interaction);
       break;
+    case "leave-share":
+      await handleLeaveShare(interaction);
+      break;
     case "share-node":
       await handleShareNode(interaction);
       break;
     case "unshare-node":
       await handleUnshareNode(interaction);
+      break;
+    case "change-password":
+      await handleChangePassword(interaction);
+      break;
+    case "admin-derp":
+      await handleAdminDerp(interaction);
       break;
     default:
       await interaction.editReply("未知指令。");
@@ -401,6 +504,14 @@ async function handleAutocomplete(interaction: Interaction) {
     await interaction.respond(nodes.slice(0, 25).map((node) => ({
       name: `${nodeLabel(node)} ${node.online ? "(online)" : ""}`.slice(0, 100),
       value: node.id
+    })));
+    return;
+  }
+  if (focused.name === "share") {
+    const shares = incomingShares(await api.listShares(), binding.covafluxUserId);
+    await interaction.respond(shares.slice(0, 25).map((share) => ({
+      name: `${nodeLabel(share.node!)} from ${share.sharedBy?.username ?? "unknown"}`.slice(0, 100),
+      value: share.id
     })));
     return;
   }

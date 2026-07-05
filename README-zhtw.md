@@ -82,10 +82,14 @@ npm run pm2:status
 - `/node-rename node name` 修改節點名稱。
 - `/node-expire node` expire 一個節點。
 - `/node-delete node` 刪除一個節點。
+- `/node-detail node` 顯示節點 owner 與目前 active shares（分享給哪些 user/group）。
 - `/group-create name` 建立 CovaFlux group。
 - `/group-add group user:@user` 將已綁定的 Discord 使用者加入 group。
 - `/share-node node user:@user allow-exit-node` 分享節點給已綁定的 Discord 使用者。
 - `/unshare-node node user:@user` 撤銷已分享給 Discord 使用者的節點。
+- `/leave-share share` 退出別人分享給你的 node share；如果是 group share，會讓你離開該 group。
+- `/change-password current-password new-password` 修改你自己的 CovaFlux 密碼。
+- `/admin-derp json` 管理員查看或更新第三方 DERP map；不填 `json` 只查看，填 `null` 清除設定。
 
 所有回覆都是 ephemeral，只有執行指令的使用者看得到。
 

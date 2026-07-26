@@ -27,6 +27,14 @@ export const commands = [
     .setName("nodes-list")
     .setDescription("List your CovaFlux nodes"),
   new SlashCommandBuilder()
+    .setName("node-exit-enable")
+    .setDescription("Approve the exit-node routes advertised by one of your nodes")
+    .addStringOption((option) => option.setName("node").setDescription("Exit node").setRequired(true).setAutocomplete(true)),
+  new SlashCommandBuilder()
+    .setName("node-exit-disable")
+    .setDescription("Remove exit-node route approval from one of your nodes")
+    .addStringOption((option) => option.setName("node").setDescription("Exit node").setRequired(true).setAutocomplete(true)),
+  new SlashCommandBuilder()
     .setName("node-expire")
     .setDescription("Expire one of your CovaFlux nodes")
     .addStringOption((option) => option.setName("node").setDescription("Node").setRequired(true).setAutocomplete(true)),

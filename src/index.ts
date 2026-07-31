@@ -46,6 +46,12 @@ function statusEmoji(node: { expired?: boolean; online?: boolean }) {
   return "⚫ offline";
 }
 
+function exitNodeStatus(node: CovafluxNode) {
+  if (node.isExitNodeApproved) return "exit:approved";
+  if (node.isExitNode) return "exit:pending";
+  return "-";
+}
+
 function validateNodeName(name: string) {
   if (!/^[a-zA-Z0-9_.-]{1,63}$/.test(name)) {
     throw new Error("節點名稱只能使用英文字母、數字、底線、點、連字號，長度需為 1 到 63 個字元。");
@@ -83,6 +89,7 @@ function nodeTableRows(nodes: CovafluxNode[], type: "owned" | "shared") {
       type,
       nodeLabel(node),
       statusEmoji(node),
+      exitNodeStatus(node),
       ips,
       node.owner?.username ?? node.ownerUserId ?? "-"
     ];
@@ -99,6 +106,7 @@ function incomingSharedNodes(shares: CovafluxShare[], currentUserId: string) {
       "shared",
       nodeLabel(share.node),
       "🔗 shared",
+      exitNodeStatus(share.node),
       share.node.ipAddresses?.length ? share.node.ipAddresses.join(", ") : "-",
       share.sharedBy?.username ?? share.node.owner?.username ?? share.node.ownerUserId ?? "-"
     ]);
@@ -140,7 +148,7 @@ function formatJson(value: unknown) {
 
 function helpMessage(isAdmin: boolean) {
   const adminLine = isAdmin
-    ? "\n🛡️ 管理員：`/admin-invite user:@user` 建立並綁定使用者帳號；`/admin-derp` 查看/更新 DERP map。"
+    ? "\n🛡️ 管理員：`/admin-invite user:@user` 建立並綁定使用者帳號；`/node-exit-enable` 與 `/node-exit-disable` 核准或停用 Exit Node；`/admin-derp` 查看/更新 DERP map。"
     : "";
   return [
     "📘 CovaFlux Discord Bot 使用說明",
@@ -150,7 +158,7 @@ function helpMessage(isAdmin: boolean) {
     "🧩 加入節點：`/node-join name:<名稱> exit-node:<true|false>`",
     "Bot 會回傳可直接貼到機器上的 `tailscale up` 指令。",
     "",
-    "🖥️ 節點管理：`/nodes-list`、`/node-detail`、`/node-rename`、`/node-expire`、`/node-delete`",
+    "🖥️ 節點管理：`/nodes-list`、`/node-detail`、`/node-exit-enable`、`/node-exit-disable`、`/node-rename`、`/node-expire`、`/node-delete`",
     "👥 群組管理：`/group-create`、`/group-add user:@user`",
     "🔗 分享節點：`/share-node node:<節點> user:@user allow-exit-node:<true|false>`、`/unshare-node node:<節點> user:@user`、`/leave-share share:<分享>`",
     "🔐 帳號：`/change-password` 修改你的 CovaFlux 密碼。",
@@ -289,8 +297,24 @@ async function handleNodesList(interaction: ChatInputCommandInteraction) {
     `📋 Nodes (${rows.length})`,
     `🖥️ owned: ${ownedRows.length} / 🔗 shared with you: ${sharedRows.length}`,
     "",
-    codeBlock("text", table(["TYPE", "NODE", "STATUS", "IP", "OWNER"], rows))
+    codeBlock("text", table(["TYPE", "NODE", "STATUS", "EXIT", "IP", "OWNER"], rows))
   ].join("\n")));
+}
+
+async function handleNodeExitEnable(interaction: ChatInputCommandInteraction) {
+  if (!isDiscordAdmin(interaction.user.id)) throw new Error("只有系統管理員可以核准 Exit Node。");
+  const admin = await getAdminClient();
+  const nodeId = interaction.options.getString("node", true);
+  const node = await admin.approveExitNode(nodeId);
+  await interaction.editReply(`🌐 已核准 Exit Node：\`${nodeLabel(node)}\`。其他節點現在可依 CovaFlux 分享權限選用它。`);
+}
+
+async function handleNodeExitDisable(interaction: ChatInputCommandInteraction) {
+  if (!isDiscordAdmin(interaction.user.id)) throw new Error("只有系統管理員可以停用 Exit Node。");
+  const admin = await getAdminClient();
+  const nodeId = interaction.options.getString("node", true);
+  const node = await admin.disableExitNode(nodeId);
+  await interaction.editReply(`🚫 已停用 Exit Node：\`${nodeLabel(node)}\`。非 Exit Node 的 route 核准不受影響。`);
 }
 
 async function handleNodeExpire(interaction: ChatInputCommandInteraction) {
@@ -452,6 +476,12 @@ async function handleCommand(interaction: ChatInputCommandInteraction) {
     case "nodes-list":
       await handleNodesList(interaction);
       break;
+    case "node-exit-enable":
+      await handleNodeExitEnable(interaction);
+      break;
+    case "node-exit-disable":
+      await handleNodeExitDisable(interaction);
+      break;
     case "node-expire":
       await handleNodeExpire(interaction);
       break;
@@ -492,22 +522,27 @@ async function handleCommand(interaction: ChatInputCommandInteraction) {
 
 async function handleAutocomplete(interaction: Interaction) {
   if (!interaction.isAutocomplete()) return;
+  const isExitNodeCommand = interaction.commandName === "node-exit-enable" || interaction.commandName === "node-exit-disable";
   const binding = await findBindingByDiscordUserId(interaction.user.id);
-  if (!binding) {
+  if (!binding && !isExitNodeCommand) {
     await interaction.respond([]);
     return;
   }
   const focused = interaction.options.getFocused(true);
-  const api = await clientForBinding(binding);
+  const api = binding ? await clientForBinding(binding) : null;
   if (focused.name === "node") {
-    const nodes = await api.listNodes();
+    const nodes = isExitNodeCommand
+      ? isDiscordAdmin(interaction.user.id)
+        ? await (await getAdminClient()).listNodes()
+        : []
+      : await api!.listNodes();
     await interaction.respond(nodes.slice(0, 25).map((node) => ({
       name: `${nodeLabel(node)} ${node.online ? "(online)" : ""}`.slice(0, 100),
       value: node.id
     })));
     return;
   }
-  if (focused.name === "share") {
+  if (focused.name === "share" && binding && api) {
     const shares = incomingShares(await api.listShares(), binding.covafluxUserId);
     await interaction.respond(shares.slice(0, 25).map((share) => ({
       name: `${nodeLabel(share.node!)} from ${share.sharedBy?.username ?? "unknown"}`.slice(0, 100),
@@ -515,7 +550,7 @@ async function handleAutocomplete(interaction: Interaction) {
     })));
     return;
   }
-  if (focused.name === "group") {
+  if (focused.name === "group" && api) {
     const groups = await api.listGroups();
     await interaction.respond(groups.slice(0, 25).map((group) => ({
       name: group.name.slice(0, 100),

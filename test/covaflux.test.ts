@@ -30,6 +30,19 @@ function jsonResponse(body: unknown, ok = true, status = ok ? 200 : 500) {
 }
 
 describe("CovafluxClient new API methods", () => {
+  it("approves and disables exit-node routes through node management endpoints", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "node-1", isExitNodeApproved: true, approvedRoutes: ["0.0.0.0/0", "::/0"] }))
+      .mockResolvedValueOnce(jsonResponse({ id: "node-1", isExitNodeApproved: false, approvedRoutes: [] }));
+
+    const client = new CovafluxClient("token");
+    await expect(client.approveExitNode("node-1")).resolves.toEqual(expect.objectContaining({ isExitNodeApproved: true }));
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:12145/nodes/node-1/exit-node/approve", expect.objectContaining({ method: "POST" }));
+
+    await expect(client.disableExitNode("node-1")).resolves.toEqual(expect.objectContaining({ isExitNodeApproved: false }));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:12145/nodes/node-1/exit-node/disable", expect.objectContaining({ method: "POST" }));
+  });
+
   it("requests node detail from /nodes/:id", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ id: "node-1", name: "alpha", shares: [] }));
 

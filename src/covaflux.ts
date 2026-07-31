@@ -30,6 +30,10 @@ export type CovafluxNode = {
   ownerUserId?: string | null;
   owner?: { id: string; username: string } | null;
   ipAddresses?: string[];
+  advertisedRoutes?: string[];
+  approvedRoutes?: string[];
+  isExitNode?: boolean;
+  isExitNodeApproved?: boolean;
   online?: boolean;
   expired?: boolean;
   lastSeenAt?: string | null;
@@ -126,6 +130,20 @@ export class CovafluxClient {
     return this.request<{ id: string; key: string; expiresAt: string }>("/nodes/register-key", {
       method: "POST",
       body: JSON.stringify(input)
+    });
+  }
+
+  async approveExitNode(nodeId: string) {
+    return this.request<CovafluxNode>(`/nodes/${nodeId}/exit-node/approve`, {
+      method: "POST",
+      body: JSON.stringify({})
+    });
+  }
+
+  async disableExitNode(nodeId: string) {
+    return this.request<CovafluxNode>(`/nodes/${nodeId}/exit-node/disable`, {
+      method: "POST",
+      body: JSON.stringify({})
     });
   }
 

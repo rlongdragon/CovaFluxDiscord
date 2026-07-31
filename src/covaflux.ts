@@ -14,6 +14,15 @@ export type CovafluxUser = {
   disabledAt?: string | null;
 };
 
+export type CovafluxNodeShare = {
+  id: string;
+  sharedBy?: CovafluxUser;
+  targetUser?: CovafluxUser | null;
+  targetGroup?: CovafluxGroup | null;
+  allowExitNode: boolean;
+  revokedAt?: string | null;
+};
+
 export type CovafluxNode = {
   id: string;
   name: string;
@@ -29,6 +38,7 @@ export type CovafluxNode = {
   expired?: boolean;
   lastSeenAt?: string | null;
   driftStatus?: string;
+  shares?: CovafluxNodeShare[];
 };
 
 export type CovafluxGroup = {
@@ -93,6 +103,10 @@ export class CovafluxClient {
 
   async listNodes() {
     return this.request<CovafluxNode[]>("/nodes");
+  }
+
+  async getNode(nodeId: string) {
+    return this.request<CovafluxNode>(`/nodes/${nodeId}`);
   }
 
   async listShares() {
@@ -178,6 +192,31 @@ export class CovafluxClient {
 
   async revokeShare(shareId: string) {
     return this.request<{ ok: true }>(`/shares/${shareId}`, { method: "DELETE" });
+  }
+
+  async leaveShare(shareId: string) {
+    return this.request<{ ok: true; action?: "revoked" | "group_left" }>(`/shares/${shareId}/leave`, {
+      method: "POST",
+      body: JSON.stringify({})
+    });
+  }
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request<{ ok: true }>("/me/password", {
+      method: "PATCH",
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+  }
+
+  async getDerpSettings() {
+    return this.request<{ derpMap: Record<string, unknown> | null }>("/settings/derp");
+  }
+
+  async updateDerpSettings(derpMap: Record<string, unknown> | null) {
+    return this.request<{ derpMap: Record<string, unknown> | null }>("/settings/derp", {
+      method: "PUT",
+      body: JSON.stringify({ derpMap })
+    });
   }
 }
 

@@ -83,11 +83,15 @@ npm run pm2:status
 - `/node-exit-disable node` lets a configured Discord administrator remove only the exit-route approval while preserving any approved subnet routes.
 - `/node-rename node name` renames a node.
 - `/node-expire node` expires a node.
-- `/node-delete node` deletes a node.
-- `/group-create name` creates a CovaFlux group owned by the bound user.
+- `/node-delete node` deletes one of your nodes.
+- `/node-detail node` shows node owner and active shares (which users/groups can access it).
+- `/group-create name` creates a CovaFlux group.
 - `/group-add group user:@user` adds a bound Discord user to a group.
 - `/share-node node user:@user allow-exit-node` shares a node with a bound Discord user.
-- `/unshare-node node user:@user` revokes a node share from a bound Discord user.
+- `/unshare-node node user:@user` revokes a node share from a Discord user.
+- `/leave-share share` leaves a node share that was shared with you; for group shares, it removes you from that group.
+- `/change-password current-password new-password` changes your own CovaFlux password.
+- `/admin-derp json` lets admins view or replace the third-party DERP map; omit `json` to view, pass `null` to clear it.
 
 All replies are ephemeral.
 

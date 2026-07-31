@@ -40,6 +40,10 @@ export const commands = [
     .setDescription("Delete one of your CovaFlux nodes")
     .addStringOption((option) => option.setName("node").setDescription("Node").setRequired(true).setAutocomplete(true)),
   new SlashCommandBuilder()
+    .setName("node-detail")
+    .setDescription("Show node owner and active share details")
+    .addStringOption((option) => option.setName("node").setDescription("Node").setRequired(true).setAutocomplete(true)),
+  new SlashCommandBuilder()
     .setName("group-create")
     .setDescription("Create a CovaFlux group")
     .addStringOption((option) => option.setName("name").setDescription("Group name").setRequired(true).setMinLength(1).setMaxLength(80)),
@@ -48,6 +52,10 @@ export const commands = [
     .setDescription("Add a Discord user to one of your CovaFlux groups")
     .addStringOption((option) => option.setName("group").setDescription("Group").setRequired(true).setAutocomplete(true))
     .addUserOption((option) => option.setName("user").setDescription("Discord user").setRequired(true)),
+  new SlashCommandBuilder()
+    .setName("leave-share")
+    .setDescription("Leave a node share that was shared with you")
+    .addStringOption((option) => option.setName("share").setDescription("Share").setRequired(true).setAutocomplete(true)),
   new SlashCommandBuilder()
     .setName("share-node")
     .setDescription("Share one of your nodes with a Discord user")
@@ -58,7 +66,19 @@ export const commands = [
     .setName("unshare-node")
     .setDescription("Revoke a node share from a Discord user")
     .addStringOption((option) => option.setName("node").setDescription("Node").setRequired(true).setAutocomplete(true))
-    .addUserOption((option) => option.setName("user").setDescription("Discord user").setRequired(true))
+    .addUserOption((option) => option.setName("user").setDescription("Discord user").setRequired(true)),
+  new SlashCommandBuilder()
+    .setName("change-password")
+    .setDescription("Change your CovaFlux password")
+    .addStringOption((option) => option.setName("current-password").setDescription("Current CovaFlux password").setRequired(true).setMinLength(1))
+    .addStringOption((option) => option.setName("new-password").setDescription("New CovaFlux password").setRequired(true).setMinLength(8)),
+  new SlashCommandBuilder()
+    .setName("admin-derp")
+    .setDescription("Admin: view or replace the CovaFlux DERP map")
+    .addStringOption((option) => option
+      .setName("json")
+      .setDescription("DERP map JSON object, or null to clear. Omit to view current settings")
+      .setRequired(false))
 ].map((command) => command.toJSON());
 
 export async function registerCommands() {

@@ -79,8 +79,8 @@ npm run pm2:status
 - `/me` 查看目前綁定狀態。
 - `/node-join name exit-node hours` 建立 Headscale/Tailscale pre-auth key，並回傳 `tailscale up` 指令。
 - `/nodes-list` 列出目前 CovaFlux 使用者可見的節點，並顯示 Exit Node 尚待核准或已核准。
-- `/node-exit-enable node` 讓設定於 `DISCORD_ADMIN_USER_IDS` 的 Discord 管理員核准任一節點宣告的 IPv4／IPv6 Exit Node routes。
-- `/node-exit-disable node` 讓 Discord 管理員僅移除 Exit Node route 核准，保留其他已核准的 subnet routes。
+- `/node-exit-enable node` 核准節點宣告的 IPv4／IPv6 Exit Node routes。權限由 CovaFlux 決定：節點擁有者可以操作自己的節點，CovaFlux 管理員可以操作任一節點。
+- `/node-exit-disable node` 僅移除 Exit Node route 核准，保留其他已核准的 subnet routes。權限同上。
 - `/node-rename node name` 修改節點名稱。
 - `/node-expire node` expire 一個節點。
 - `/node-delete node` 刪除一個節點。

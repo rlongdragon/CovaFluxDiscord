@@ -302,18 +302,18 @@ async function handleNodesList(interaction: ChatInputCommandInteraction) {
 }
 
 async function handleNodeExitEnable(interaction: ChatInputCommandInteraction) {
-  if (!isDiscordAdmin(interaction.user.id)) throw new Error("只有系統管理員可以核准 Exit Node。");
-  const admin = await getAdminClient();
+  const binding = await requireBinding(interaction);
+  const api = await clientForBinding(binding);
   const nodeId = interaction.options.getString("node", true);
-  const node = await admin.approveExitNode(nodeId);
+  const node = await api.approveExitNode(nodeId);
   await interaction.editReply(`🌐 已核准 Exit Node：\`${nodeLabel(node)}\`。其他節點現在可依 CovaFlux 分享權限選用它。`);
 }
 
 async function handleNodeExitDisable(interaction: ChatInputCommandInteraction) {
-  if (!isDiscordAdmin(interaction.user.id)) throw new Error("只有系統管理員可以停用 Exit Node。");
-  const admin = await getAdminClient();
+  const binding = await requireBinding(interaction);
+  const api = await clientForBinding(binding);
   const nodeId = interaction.options.getString("node", true);
-  const node = await admin.disableExitNode(nodeId);
+  const node = await api.disableExitNode(nodeId);
   await interaction.editReply(`🚫 已停用 Exit Node：\`${nodeLabel(node)}\`。非 Exit Node 的 route 核准不受影響。`);
 }
 
@@ -522,27 +522,22 @@ async function handleCommand(interaction: ChatInputCommandInteraction) {
 
 async function handleAutocomplete(interaction: Interaction) {
   if (!interaction.isAutocomplete()) return;
-  const isExitNodeCommand = interaction.commandName === "node-exit-enable" || interaction.commandName === "node-exit-disable";
   const binding = await findBindingByDiscordUserId(interaction.user.id);
-  if (!binding && !isExitNodeCommand) {
+  if (!binding) {
     await interaction.respond([]);
     return;
   }
   const focused = interaction.options.getFocused(true);
-  const api = binding ? await clientForBinding(binding) : null;
+  const api = await clientForBinding(binding);
   if (focused.name === "node") {
-    const nodes = isExitNodeCommand
-      ? isDiscordAdmin(interaction.user.id)
-        ? await (await getAdminClient()).listNodes()
-        : []
-      : await api!.listNodes();
+    const nodes = await api.listNodes();
     await interaction.respond(nodes.slice(0, 25).map((node) => ({
       name: `${nodeLabel(node)} ${node.online ? "(online)" : ""}`.slice(0, 100),
       value: node.id
     })));
     return;
   }
-  if (focused.name === "share" && binding && api) {
+  if (focused.name === "share") {
     const shares = incomingShares(await api.listShares(), binding.covafluxUserId);
     await interaction.respond(shares.slice(0, 25).map((share) => ({
       name: `${nodeLabel(share.node!)} from ${share.sharedBy?.username ?? "unknown"}`.slice(0, 100),
@@ -550,7 +545,7 @@ async function handleAutocomplete(interaction: Interaction) {
     })));
     return;
   }
-  if (focused.name === "group" && api) {
+  if (focused.name === "group") {
     const groups = await api.listGroups();
     await interaction.respond(groups.slice(0, 25).map((group) => ({
       name: group.name.slice(0, 100),

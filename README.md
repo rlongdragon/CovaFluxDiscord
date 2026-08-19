@@ -79,8 +79,8 @@ npm run pm2:status
 - `/me` shows the current binding.
 - `/node-join name exit-node hours` creates a Headscale/Tailscale pre-auth key and returns a `tailscale up` command.
 - `/nodes-list` lists nodes visible to the bound CovaFlux user and shows whether each exit node is pending approval or approved.
-- `/node-exit-enable node` lets a configured Discord administrator approve the IPv4/IPv6 exit routes advertised by any node.
-- `/node-exit-disable node` lets a configured Discord administrator remove only the exit-route approval while preserving any approved subnet routes.
+- `/node-exit-enable node` approves the IPv4/IPv6 exit routes advertised by a node. CovaFlux decides who may do this: node owners can manage their own nodes, CovaFlux administrators can manage any node.
+- `/node-exit-disable node` removes only the exit-route approval while preserving any approved subnet routes. Same permissions as above.
 - `/node-rename node name` renames a node.
 - `/node-expire node` expires a node.
 - `/node-delete node` deletes one of your nodes.

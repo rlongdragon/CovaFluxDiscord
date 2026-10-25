@@ -58,9 +58,13 @@ export type CovafluxShare = {
 };
 
 export class CovafluxClient {
-  constructor(private readonly token?: string) {}
+  /**
+   * reauthenticate is called once when a request gets 401 (expired or revoked
+   * JWT); it must return a fresh token, and the request is retried with it.
+   */
+  constructor(private token?: string, private readonly reauthenticate?: () => Promise<string>) {}
 
-  async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  async request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
     const headers = new Headers(options.headers);
     if (this.token) headers.set("authorization", `Bearer ${this.token}`);
     if (options.body && !headers.has("content-type")) headers.set("content-type", "application/json");
@@ -69,6 +73,10 @@ export class CovafluxClient {
       ...options,
       headers
     });
+    if (response.status === 401 && this.reauthenticate && !retried) {
+      this.token = await this.reauthenticate();
+      return this.request<T>(path, options, true);
+    }
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       const message = Array.isArray(body.issues)
@@ -201,8 +209,9 @@ export class CovafluxClient {
     });
   }
 
+  /** Revokes every existing session of the user; returns a fresh token. */
   async changePassword(currentPassword: string, newPassword: string) {
-    return this.request<{ ok: true }>("/me/password", {
+    return this.request<{ ok: true; token?: string }>("/me/password", {
       method: "PATCH",
       body: JSON.stringify({ currentPassword, newPassword })
     });
@@ -222,13 +231,14 @@ export class CovafluxClient {
 
 let adminToken: string | null = null;
 
+async function loginAdmin() {
+  const login = await new CovafluxClient().login(config.covafluxAdminUsername, config.covafluxAdminPassword);
+  adminToken = login.token;
+  return login.token;
+}
+
 export async function getAdminClient() {
-  if (!adminToken) {
-    const client = new CovafluxClient();
-    const login = await client.login(config.covafluxAdminUsername, config.covafluxAdminPassword);
-    adminToken = login.token;
-  }
-  return new CovafluxClient(adminToken);
+  return new CovafluxClient(adminToken ?? await loginAdmin(), loginAdmin);
 }
 
 export async function getUserClient(token: string) {

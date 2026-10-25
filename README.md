@@ -40,7 +40,9 @@ DATA_DIR=./data
 
 `DISCORD_GUILD_ID` is optional. Leave it empty if the bot should not be limited to one Discord server. Global command updates can take longer to appear in Discord than guild-scoped commands.
 
-`DISCORD_BOT_SECRET` encrypts stored CovaFlux JWTs in `data/bindings.json`. Do not change it after users are bound unless you are ready to re-login/re-invite users.
+`DISCORD_BOT_SECRET` encrypts the stored CovaFlux JWTs and passwords in `data/bindings.json`. CovaFlux JWTs expire (12h by default) and are revoked on password change, so the bot logs in again with the stored password when a token stops working. Keep `data/` private, and do not change the secret after users are bound unless you are ready to re-login/re-invite users. Bindings made before passwords were stored need one more `/login`.
+
+With the Docker Compose deployment of CovaFlux, use `COVAFLUX_API_BASE_URL=https://<COVAFLUX_DOMAIN>/api` and `TAILSCALE_LOGIN_SERVER=https://<HEADSCALE_DOMAIN>`.
 
 ## Commands
 

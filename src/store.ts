@@ -9,6 +9,10 @@ export type Binding = {
   covafluxUserId: string;
   covafluxUsername: string;
   encryptedCovafluxJwt: string;
+  // CovaFlux JWTs expire and are revoked on password change, so the bot keeps
+  // the (encrypted) password to log in again. Missing on bindings made before
+  // this was added; those users must /login once more.
+  encryptedCovafluxPassword?: string;
   createdByAdminDiscordUserId?: string;
   createdAt: string;
   updatedAt: string;
@@ -50,6 +54,7 @@ export async function upsertBinding(input: {
   covafluxUserId: string;
   covafluxUsername: string;
   covafluxJwt: string;
+  covafluxPassword: string;
   createdByAdminDiscordUserId?: string;
 }) {
   const data = await readData();
@@ -69,6 +74,7 @@ export async function upsertBinding(input: {
     covafluxUserId: input.covafluxUserId,
     covafluxUsername: input.covafluxUsername,
     encryptedCovafluxJwt,
+    encryptedCovafluxPassword: encryptSecret(input.covafluxPassword),
     createdByAdminDiscordUserId: input.createdByAdminDiscordUserId,
     createdAt: existingIndex >= 0 ? data.bindings[existingIndex].createdAt : now,
     updatedAt: now
@@ -80,6 +86,19 @@ export async function upsertBinding(input: {
   return next;
 }
 
+export async function updateBindingJwt(discordUserId: string, covafluxJwt: string) {
+  const data = await readData();
+  const binding = data.bindings.find((candidate) => candidate.discordUserId === discordUserId);
+  if (!binding) return;
+  binding.encryptedCovafluxJwt = encryptSecret(covafluxJwt);
+  binding.updatedAt = new Date().toISOString();
+  await writeData(data);
+}
+
 export function getBindingJwt(binding: Binding) {
   return decryptSecret(binding.encryptedCovafluxJwt);
+}
+
+export function getBindingPassword(binding: Binding) {
+  return binding.encryptedCovafluxPassword ? decryptSecret(binding.encryptedCovafluxPassword) : null;
 }

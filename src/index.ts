@@ -13,6 +13,8 @@ import {
   findBindingByDiscordUserId,
   findBindingByCovafluxUserId,
   getBindingJwt,
+  getBindingPassword,
+  updateBindingJwt,
   upsertBinding,
   type Binding
 } from "./store.js";
@@ -173,7 +175,20 @@ async function requireBinding(interaction: ChatInputCommandInteraction) {
 }
 
 function clientForBinding(binding: Binding) {
-  return getUserClient(getBindingJwt(binding));
+  // On 401 (expired or revoked JWT) log in again with the stored password and
+  // keep the new token for later commands.
+  return new CovafluxClient(getBindingJwt(binding), async () => {
+    const password = getBindingPassword(binding);
+    if (!password) throw new Error("CovaFlux 登入已過期，請重新使用 /login 綁定一次（之後會自動續登）。");
+    let token: string;
+    try {
+      token = (await new CovafluxClient().login(binding.covafluxUsername, password)).token;
+    } catch (error) {
+      throw new Error(`CovaFlux 自動重新登入失敗（${(error as Error).message}）。如果你在別處改過密碼，請重新使用 /login 綁定。`);
+    }
+    await updateBindingJwt(binding.discordUserId, token);
+    return token;
+  });
 }
 
 async function handleAdminInvite(interaction: ChatInputCommandInteraction) {
@@ -193,6 +208,7 @@ async function handleAdminInvite(interaction: ChatInputCommandInteraction) {
     covafluxUserId: createdUser.id,
     covafluxUsername: createdUser.username,
     covafluxJwt: login.token,
+    covafluxPassword: password,
     createdByAdminDiscordUserId: interaction.user.id
   });
 
@@ -240,7 +256,8 @@ async function handleLogin(interaction: ChatInputCommandInteraction) {
     discordUsername: interaction.user.username,
     covafluxUserId: me.actor.id,
     covafluxUsername: me.actor.username ?? username,
-    covafluxJwt: login.token
+    covafluxJwt: login.token,
+    covafluxPassword: password
   });
 
   await interaction.editReply(`✅ 已綁定 CovaFlux 帳號：\`${me.actor.username ?? username}\``);
@@ -436,8 +453,19 @@ async function handleChangePassword(interaction: ChatInputCommandInteraction) {
   const api = await clientForBinding(binding);
   const currentPassword = interaction.options.getString("current-password", true);
   const newPassword = interaction.options.getString("new-password", true);
-  await api.changePassword(currentPassword, newPassword);
-  await interaction.editReply("🔐 CovaFlux 密碼已更新。提醒：如果你之後登出或重新綁定，請使用新密碼登入。");
+  const result = await api.changePassword(currentPassword, newPassword);
+  // The password change revoked every older JWT, including the stored one.
+  const token = result.token ?? (await new CovafluxClient().login(binding.covafluxUsername, newPassword)).token;
+  await upsertBinding({
+    discordUserId: binding.discordUserId,
+    discordUsername: binding.discordUsername,
+    covafluxUserId: binding.covafluxUserId,
+    covafluxUsername: binding.covafluxUsername,
+    covafluxJwt: token,
+    covafluxPassword: newPassword,
+    createdByAdminDiscordUserId: binding.createdByAdminDiscordUserId
+  });
+  await interaction.editReply("🔐 CovaFlux 密碼已更新，Bot 的登入也已同步更新。");
 }
 
 async function handleAdminDerp(interaction: ChatInputCommandInteraction) {

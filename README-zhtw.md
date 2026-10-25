@@ -40,7 +40,9 @@ DATA_DIR=./data
 
 `DISCORD_GUILD_ID` 是可選設定。留空時，bot 不會限制在單一 Discord server。全域指令在 Discord 更新時可能需要比較久才會出現。
 
-`DISCORD_BOT_SECRET` 會用來加密儲存在 `data/bindings.json` 裡面的 CovaFlux JWT。使用者綁定後不要更換這個值，除非你準備讓所有使用者重新登入或重新邀請。
+`DISCORD_BOT_SECRET` 會用來加密儲存在 `data/bindings.json` 裡面的 CovaFlux JWT 與密碼。CovaFlux 的 JWT 會過期（預設 12 小時），改密碼時也會被撤銷，所以 token 失效時 bot 會用儲存的密碼自動重新登入。請確保 `data/` 不外流；使用者綁定後不要更換這個值，除非你準備讓所有使用者重新登入或重新邀請。在開始儲存密碼之前建立的綁定，需要再 `/login` 一次。
+
+若 CovaFlux 使用 Docker Compose 部署，請設定 `COVAFLUX_API_BASE_URL=https://<COVAFLUX_DOMAIN>/api` 與 `TAILSCALE_LOGIN_SERVER=https://<HEADSCALE_DOMAIN>`。
 
 ## 指令註冊與啟動
 
